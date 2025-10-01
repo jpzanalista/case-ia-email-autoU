@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoU - Classificador de Emails com Gemini</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            margin: 2rem auto;
+            padding: 2rem;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+        }
+        
+        .upload-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 2px dashed #dee2e6;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-section:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        
+        .form-control, .form-select {
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            padding: 0.75rem 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 0.75rem 2rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .result-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-top: 1rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid #667eea;
+        }
+        
+        .classification-badge {
+            font-size: 1.1rem;
+            font-weight: 600;
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
+        
+        .classification-produtivo {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+        }
+        
+        .classification-improdutivo {
+            background: linear-gradient(135deg, #ffc107, #fd7e14);
+            color: white;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .spinner-border {
+            color: #667eea;
+        }
+        
+        .alert {
+            border-radius: 10px;
+            border: none;
+        }
+        
+        .file-upload-area {
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .file-upload-area:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        
+        .file-upload-area.dragover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        
+        .feature-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .feature-icon {
+            font-size: 2.5rem;
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-container">
+            <div class="header">
+                <h1><i class="fas fa-envelope-open-text"></i> AutoU Classificador</h1>
+                <p>Classificação inteligente de emails com IA</p>
+            </div>
+            
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="upload-section">
+                        <h4><i class="fas fa-upload"></i> Enviar Email para Análise</h4>
+                        <p class="text-muted">Cole o texto do email diretamente ou faça upload de um arquivo (.txt ou .pdf)</p>
+                        
+                        <form id="emailForm">
+                            <div class="mb-3">
+                                <label for="emailText" class="form-label">Texto do Email:</label>
+                                <textarea class="form-control" id="emailText" name="email_text" rows="6" 
+                                    placeholder="Cole aqui o conteúdo do email que deseja classificar..."></textarea>
+                            </div>
+                            
+                            <div class="text-center mb-3">
+                                <span class="text-muted">ou</span>
+                            </div>
+                            
+                            <div class="file-upload-area" id="fileUploadArea">
+                                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                <h5>Arraste e solte seu arquivo aqui</h5>
+                                <p class="text-muted">ou clique para selecionar</p>
+                                <input type="file" id="emailFile" name="email_file" accept=".txt,.pdf" style="display: none;">
+                                <button type="button" class="btn btn-outline-primary" onclick="selectFile()">
+                                    <i class="fas fa-folder-open"></i> Selecionar Arquivo
+                                </button>
+                            </div>
+                            
+                            <div class="text-center mt-3">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-brain"></i> Classificar Email
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <div class="loading" id="loading">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Processando...</span>
+                        </div>
+                        <p class="mt-2">Analisando email com IA...</p>
+                    </div>
+                    
+                    <div id="results" style="display: none;">
+                        <!-- Resultados serão inseridos aqui -->
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <h5>IA Avançada</h5>
+                        <p class="text-muted">Utilizamos Google Gemini 2.0 Flash para classificação inteligente e geração de respostas</p>
+                    </div>
+                    
+                    <div class="feature-card mt-3">
+                        <div class="feature-icon">
+                            <i class="fas fa-tachometer-alt"></i>
+                        </div>
+                        <h5>Processamento Rápido</h5>
+                        <p class="text-muted">Análise em segundos com alta precisão</p>
+                    </div>
+                    
+                    <div class="feature-card mt-3">
+                        <div class="feature-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <h5>Seguro e Confiável</h5>
+                        <p class="text-muted">Seus dados são processados de forma segura</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Configuração do drag and drop
+        const fileUploadArea = document.getElementById('fileUploadArea');
+        
+        function setupDragAndDrop() {
+            const fileInput = document.getElementById('emailFile');
+            
+            if (!fileInput || !fileUploadArea) return;
+            
+            fileUploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                fileUploadArea.classList.add('dragover');
+            });
+            
+            fileUploadArea.addEventListener('dragleave', () => {
+                fileUploadArea.classList.remove('dragover');
+            });
+            
+            fileUploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                fileUploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    fileInput.files = files;
+                    updateFileDisplay();
+                }
+            });
+            
+            fileInput.addEventListener('change', updateFileDisplay);
+        }
+        
+        function updateFileDisplay() {
+            const fileInput = document.getElementById('emailFile');
+            if (!fileInput) return;
+            
+            const file = fileInput.files[0];
+            if (file) {
+                // Limpar resultados anteriores quando um novo arquivo é selecionado
+                clearPreviousResults();
+                
+                fileUploadArea.innerHTML = `
+                    <i class="fas fa-file fa-3x text-success mb-3"></i>
+                    <h5>Arquivo selecionado</h5>
+                    <p class="text-muted">${file.name}</p>
+                    <button type="button" class="btn btn-outline-secondary" onclick="clearFile()">
+                        <i class="fas fa-times"></i> Remover
+                    </button>
+                `;
+            }
+        }
+        
+        function clearFile() {
+            // Limpar o valor do input de arquivo
+            const fileInput = document.getElementById('emailFile');
+            if (fileInput) {
+                fileInput.value = '';
+            }
+            
+            // Restaurar a área de upload para o estado inicial
+            fileUploadArea.innerHTML = `
+                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                <h5>Arraste e solte seu arquivo aqui</h5>
+                <p class="text-muted">ou clique para selecionar</p>
+                <input type="file" id="emailFile" name="email_file" accept=".txt,.pdf" style="display: none;">
+                <button type="button" class="btn btn-outline-primary" onclick="selectFile()">
+                    <i class="fas fa-folder-open"></i> Selecionar Arquivo
+                </button>
+            `;
+            
+            // Reconfigurar os event listeners de drag and drop
+            setupDragAndDrop();
+        }
+        
+        function selectFile() {
+            const emailFileElement = document.getElementById('emailFile');
+            if (emailFileElement) {
+                emailFileElement.click();
+            } else {
+                console.error('Campo de arquivo não encontrado');
+            }
+        }
+        
+        // Processamento do formulário - será registrado quando o DOM estiver pronto
+        function setupFormListener() {
+            const form = document.getElementById('emailForm');
+            const emailTextElement = document.getElementById('emailText');
+            const emailFileElement = document.getElementById('emailFile');
+            
+            if (!form || !emailTextElement || !emailFileElement) {
+                console.error('Elementos não encontrados!');
+                return;
+            }
+            
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                // Limpar resultados imediatamente ao enviar formulário
+                clearPreviousResults();
+                
+                const formData = new FormData();
+                const emailText = emailTextElement.value.trim();
+                const emailFile = emailFileElement.files[0];
+                
+                
+                if (!emailText && !emailFile) {
+                    showAlert('Por favor, insira um texto ou selecione um arquivo.', 'warning');
+                    return;
+                }
+                
+                if (emailText) {
+                    formData.append('email_text', emailText);
+                }
+                if (emailFile) {
+                    formData.append('email_file', emailFile);
+                }
+                
+                // Mostrar loading
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('results').style.display = 'none';
+                
+                try {
+                    const response = await fetch('/process', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    console.log('Dados recebidos do backend:', data);
+                    
+                    if (data.success) {
+                        console.log('Chamando displayResults com:', data);
+                        displayResults(data);
+                    } else {
+                        showAlert(data.error || 'Erro no processamento', 'danger');
+                    }
+                } catch (error) {
+                    console.error('Erro na requisição:', error);
+                    showAlert('Erro de conexão. Tente novamente.', 'danger');
+                } finally {
+                    document.getElementById('loading').style.display = 'none';
+                }
+            });
+        }
+        
+        function displayResults(data) {
+            console.log('Exibindo resultados:', data);
+            const resultsDiv = document.getElementById('results');
+            
+            // Limpeza forçada antes de inserir novos dados
+            resultsDiv.innerHTML = '';
+            resultsDiv.style.display = 'none';
+            
+            // Aguardar um frame e inserir novos dados para evitar cache
+            setTimeout(() => {
+                // Determinar classe CSS baseada na classificação
+            let classificationClass, iconClass, badgeText;
+            
+            if (data.classification === 'Produtivo') {
+                classificationClass = 'classification-produtivo';
+                iconClass = 'check-circle';
+                badgeText = 'Produtivo';
+            } else if (data.classification === 'Improdutivo') {
+                classificationClass = 'classification-improdutivo';
+                iconClass = 'info-circle';
+                badgeText = 'Improdutivo';
+            } else if (data.classification === 'MODO_TESTE') {
+                classificationClass = 'classification-improdutivo';
+                iconClass = 'exclamation-triangle';
+                badgeText = 'Modo Demonstração';
+            } else {
+                classificationClass = 'classification-improdutivo';
+                iconClass = 'exclamation-triangle';
+                badgeText = data.classification;
+            }
+            
+            // Verificar se há erro na resposta
+            const hasError = data.response.includes('Erro na') || data.response.includes('Error');
+            
+            resultsDiv.innerHTML = `
+                <div class="result-card">
+                    <h4><i class="fas fa-chart-bar"></i> Resultado da Análise</h4>
+                    
+                    <div class="mb-3">
+                        <span class="classification-badge ${classificationClass}">
+                            <i class="fas fa-${iconClass}"></i>
+                            ${badgeText}
+                        </span>
+                    </div>
+                    
+                    ${data.classification === 'MODO_TESTE' ? `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Modo Demonstração:</strong> A API do Gemini está temporariamente indisponível. 
+                        Esta é uma resposta de exemplo para demonstração da funcionalidade.
+                    </div>
+                    ` : ''}
+                    
+                    <div class="mb-3">
+                        <h6><i class="fas fa-reply"></i> Resposta Sugerida:</h6>
+                        <div class="alert ${hasError ? 'alert-danger' : 'alert-light'}">
+                            <pre style="white-space: pre-wrap; font-family: inherit;">${data.response}</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6><i class="fas fa-eye"></i> Texto Analisado:</h6>
+                        <div class="alert alert-info">
+                            <small>${data.original_text}</small>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <button class="btn btn-outline-primary" onclick="copyResponse()">
+                            <i class="fas fa-copy"></i> Copiar Resposta
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="newAnalysis()">
+                            <i class="fas fa-plus"></i> Nova Análise
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            resultsDiv.style.display = 'block';
+            }, 10); // Fechar o setTimeout
+        }
+        
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('results').appendChild(alertDiv);
+            document.getElementById('results').style.display = 'block';
+        }
+        
+        function copyResponse() {
+            const responseElement = document.querySelector('.alert-light pre');
+            if (responseElement) {
+                const responseText = responseElement.textContent;
+                navigator.clipboard.writeText(responseText).then(() => {
+                    showAlert('Resposta copiada para a área de transferência!', 'success');
+                }).catch(err => {
+                    showAlert('Erro ao copiar resposta. Tente novamente.', 'danger');
+                });
+            } else {
+                showAlert('Resposta não encontrada para copiar.', 'warning');
+            }
+        }
+        
+        function clearPreviousResults() {
+            console.log('Limpando resultados anteriores...');
+            const resultsElement = document.getElementById('results');
+            if (resultsElement) {
+                // Limpeza imediata
+                resultsElement.innerHTML = '';
+                resultsElement.style.display = 'none';
+                
+                // Limpeza adicional com timeout para garantir
+                setTimeout(() => {
+                    resultsElement.innerHTML = '';
+                    resultsElement.style.display = 'none';
+                }, 50);
+                
+                console.log('Resultados limpos com sucesso');
+            } else {
+                console.log('Elemento results não encontrado');
+            }
+        }
+        
+        function newAnalysis() {
+            // Limpar texto do email
+            const emailTextElement = document.getElementById('emailText');
+            if (emailTextElement) {
+                emailTextElement.value = '';
+                emailTextElement.focus();
+            }
+            
+            // Limpar arquivo selecionado
+            const emailFileElement = document.getElementById('emailFile');
+            if (emailFileElement) {
+                emailFileElement.value = '';
+            }
+            
+            // Limpar área de upload
+            clearFile();
+            
+            // Limpar resultados completamente
+            clearPreviousResults();
+        }
+        
+        // Registrar eventos quando o DOM estiver pronto
+        document.addEventListener('DOMContentLoaded', function() {
+            // Aguardar um pouco mais para garantir que tudo esteja carregado
+            setTimeout(function() {
+                // Configurar o listener do formulário
+                setupFormListener();
+                // Configurar drag and drop
+                setupDragAndDrop();
+                
+                // Limpar resultados quando o texto do email for alterado
+                const emailTextElement = document.getElementById('emailText');
+                if (emailTextElement) {
+                    emailTextElement.addEventListener('input', function() {
+                        clearPreviousResults();
+                    });
+                }
+            }, 100); // Aguardar 100ms
+        });
+    </script>
+</body>
+</html>
+
